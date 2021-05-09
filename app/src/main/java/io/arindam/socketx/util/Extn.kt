@@ -19,12 +19,7 @@ fun Double.getColorCode(context: Context): Int = when {
     else -> ContextCompat.getColor(context, R.color.severe)
 }
 
-fun Long.getMinute(): Float {
-    val calendar = Calendar.getInstance()
-    calendar.timeInMillis = this
-    return calendar.get(Calendar.SECOND).toFloat()
-}
-
+fun Long.getSeconds(): Long = this / 1000
 fun Long.getTime(): String {
     val calendar = Calendar.getInstance()
     calendar.timeInMillis = this
@@ -72,4 +67,3 @@ fun Long.getTime(): String {
         else -> "a moment ago"
     }
 }
-

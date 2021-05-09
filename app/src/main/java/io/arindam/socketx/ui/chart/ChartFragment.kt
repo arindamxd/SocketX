@@ -16,7 +16,7 @@ import io.arindam.socketx.data.local.Repository
 import io.arindam.socketx.data.model.CityAQI
 import io.arindam.socketx.ui.home.HomeViewModel
 import io.arindam.socketx.util.ViewModelFactory
-import io.arindam.socketx.util.getMinute
+import io.arindam.socketx.util.getSeconds
 import kotlinx.android.synthetic.main.fragment_chart.*
 import kotlin.math.roundToInt
 
@@ -32,7 +32,9 @@ class ChartFragment private constructor() : Fragment() {
     }
 
     private var viewModel: HomeViewModel? = null
-    private var listLiveData: LiveData<List<CityAQI>>? = null
+    private var listLiveData: LiveData<CityAQI>? = null
+
+    private var lastUpdatedTime: Long = 0L
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -51,40 +53,59 @@ class ChartFragment private constructor() : Fragment() {
     }
 
     fun updateCity(cityName: String) {
+        fetch(cityName = cityName)
         city_name.text = cityName
 
-        listLiveData = viewModel?.getListByCityName(cityName)
-        listLiveData?.observe(this, {
-            updateChart(getEntries(it), cityName)
-        })
+        listLiveData = viewModel?.getLatestByCityName(cityName)
+        listLiveData?.observe(this, { fetch(it, cityName) })
     }
 
     fun removeObserver() {
+        lastUpdatedTime = 0L
+        chart_view.clear()
         listLiveData?.removeObservers(this)
     }
 
-    private fun updateChart(entries: List<Entry>, city: String) {
-        chart_view.clear()
+    private fun fetch(data: CityAQI? = null, cityName: String) {
+        if (lastUpdatedTime == 0L) {
+            viewModel?.getEarlierByCityName(cityName)?.observe(this, { dataList ->
+                viewModel?.getEarlierByCityName(cityName)?.removeObservers(this@ChartFragment)
+                update(getEntries(dataList))
+            })
+        } else data?.let { update(getEntries(listOf(it))) }
+    }
 
-        val lineDataSet = LineDataSet(entries, "AQI")
-        lineDataSet.mode = LineDataSet.Mode.CUBIC_BEZIER
-        lineDataSet.lineWidth = 1.8f
-        lineDataSet.circleRadius = 1f
-        lineDataSet.setDrawFilled(true)
+    private fun update(entries: List<Entry>) {
+        val lineDataSet: LineDataSet
+        if (chart_view.data != null && chart_view.data.dataSetCount > 0) {
+            lineDataSet = chart_view.data.getDataSetByIndex(0) as LineDataSet
+            lineDataSet.values = entries
 
-        val dataSets: MutableList<ILineDataSet> = mutableListOf()
-        dataSets.add(lineDataSet)
+            chart_view.data.notifyDataChanged()
+            chart_view.notifyDataSetChanged()
+        } else {
+            lineDataSet = LineDataSet(entries, "Air Quality Index")
+            lineDataSet.mode = LineDataSet.Mode.CUBIC_BEZIER
+            lineDataSet.lineWidth = 1.8f
+            lineDataSet.circleRadius = 1f
+            lineDataSet.setDrawFilled(true)
 
-        val data = LineData(dataSets)
-        chart_view.data = data
-        chart_view.description.text = city
+            val dataSets: MutableList<ILineDataSet> = mutableListOf()
+            dataSets.add(lineDataSet)
+
+            val data = LineData(dataSets)
+            chart_view.data = data
+            chart_view.description.isEnabled = false
+        }
         chart_view.invalidate()
     }
 
     private fun getEntries(list: List<CityAQI>): List<Entry> {
         val entries: MutableList<Entry> = ArrayList()
         list.forEach {
-            entries.add(Entry(it.timestamp.getMinute(), it.aqi.roundToInt().toFloat()))
+            if (lastUpdatedTime == 0L) lastUpdatedTime = it.timestamp.getSeconds()
+            val interval = it.timestamp.getSeconds() - lastUpdatedTime
+            entries.add(Entry(interval.toFloat(), it.aqi.roundToInt().toFloat()))
         }
         return entries
     }

@@ -17,8 +17,11 @@ interface CityAQIDao {
     @Query("SELECT id, city, aqi, max(timestamp) as 'timestamp' FROM city_table GROUP BY city ORDER BY city ASC")
     fun getLatestList(): LiveData<List<CityAQI>>
 
-    @Query("SELECT * FROM city_table WHERE city LIKE :cityName ORDER BY timestamp ASC")
-    fun getListByCityName(cityName: String): LiveData<List<CityAQI>>
+    @Query("SELECT * FROM city_table WHERE city LIKE :cityName ORDER BY id ASC")
+    fun getEarlierByCityName(cityName: String): LiveData<List<CityAQI>>
+
+    @Query("SELECT * FROM city_table WHERE city LIKE :cityName ORDER BY id DESC LIMIT 1")
+    fun getLatestByCityName(cityName: String): LiveData<CityAQI>
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     fun insertAll(cityAQIs: List<CityAQI>): List<Long>
