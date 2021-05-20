@@ -13,12 +13,8 @@ bin/
 gen/
 out/
 app/android/
-app/midroid/
-app/indusos/
 app/release
-app/staging
 app/debug
-app/mirelease
 app/app.iml
 app/fabric.properties
 output.json
